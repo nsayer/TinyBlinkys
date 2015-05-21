@@ -1,6 +1,6 @@
 /*
 
- TinyBlinkys
+ Blinky Earrings
  Copyright 2013 Nicholas W. Sayer
  
  This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,10 @@
  
 */
 
+#include <avr/power.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include <EEPROM.h>
 
 
@@ -39,6 +41,9 @@ byte LED_PINS[] = { LED_0, LED_1, LED_2, LED_3, LED_4, LED_5, LED_6, LED_7 };
 
 #define BUTTON_PIN 5
 
+#define UNUSED_1 4
+#define UNUSED_2 6
+
 // If we see any state change on the button, we ignore all changes for this long
 #define BUTTON_DEBOUNCE_INTERVAL 50
 // How long does the button have to stay down before we call it a LONG push?
@@ -52,7 +57,7 @@ struct pattern_entry {
 };
 
 // Circle in 800 ms, sleep 1 second.
-const struct pattern_entry circle_pattern[] = {
+PROGMEM const struct pattern_entry circle_pattern[] = {
   { B00000001, 50 },
   { 0, 50 },
   { B00000010, 50 },
@@ -72,7 +77,7 @@ const struct pattern_entry circle_pattern[] = {
   { 0, 0 }
 };
 
-const struct pattern_entry back_circle_pattern[] = {
+PROGMEM const struct pattern_entry back_circle_pattern[] = {
   { B10000000, 50 },
   { 0, 50 },
   { B01000000, 50 },
@@ -92,7 +97,7 @@ const struct pattern_entry back_circle_pattern[] = {
   { 0, 0 }
 };
 
-const struct pattern_entry skip_around[] = {
+PROGMEM const struct pattern_entry skip_around[] = {
   { B10000000, 50 },
   { 0, 50 },
   { B00010000, 50 },
@@ -112,7 +117,7 @@ const struct pattern_entry skip_around[] = {
   { 0, 0 }
 };
 
-const struct pattern_entry blink_all[] = {
+PROGMEM const struct pattern_entry blink_all[] = {
   { B10000000, 1 },
   { B00000010, 1 },
   { B00010000, 1 },
@@ -125,7 +130,7 @@ const struct pattern_entry blink_all[] = {
   { 0, 0 }
 };
 
-const struct pattern_entry *patterns[] = {
+PROGMEM const struct pattern_entry *patterns[] = {
   circle_pattern,
   back_circle_pattern,
   skip_around,
@@ -133,6 +138,7 @@ const struct pattern_entry *patterns[] = {
 };
 // How many patterns are there?
 #define PATTERN_COUNT 4
+//#define PATTERN_COUNT (sizeof(patterns) / sizeof(struct pattern_entry *))
 
 #define EVENT_NONE 0
 #define EVENT_SHORT_PUSH 1
@@ -185,16 +191,17 @@ void sleepNow() {
   for(int i = 0; i < 8; i++) {
     digitalWrite(LED_PINS[i], LOW);
   }
-  PCMSK0 |= (1 << PCINT5);
-  GIMSK |= (1 << PCIE0);
+  cli();
+  power_timer0_disable();
+  PCMSK0 |= _BV(PCINT5);
+  GIMSK |= _BV(PCIE0);
   sleep_enable();
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);  
-  //sleep_bod_disable();
   sei();
   sleep_cpu();
   sleep_disable();
-  PCMSK0 &= 0xff ^ (1 << PCINT5);
-  GIMSK &= 0xff ^ (1 << PCIE0);
+  PCMSK0 &= 0xff ^ _BV(PCINT5);
+  GIMSK &= 0xff ^ _BV(PCIE0);
+  power_timer0_enable();
   button_debounce_time = millis();
   ignoring_button = 1;
   place_in_pattern = -1;
@@ -202,8 +209,18 @@ void sleepNow() {
 }
 
 void setup() {
-  
+  ADCSRA = 0; // DIE, ADC! DIE!!!
+  power_adc_disable();
+  power_usi_disable();
+  power_timer1_disable();
+  ACSR = _BV(ACD);
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(UNUSED_1, OUTPUT);
+  digitalWrite(UNUSED_1, LOW);
+  pinMode(UNUSED_2, OUTPUT);
+  digitalWrite(UNUSED_2, LOW);
   for(int i = 0; i < 8; i++) {
     pinMode(LED_PINS[i], OUTPUT);
     digitalWrite(LED_PINS[i], LOW);
@@ -235,12 +252,13 @@ void loop() {
   if (milli_of_next_act == 0 || now > milli_of_next_act) {
     // It's time to go to the next step in the pattern
     place_in_pattern++;
-    const struct pattern_entry *our_pattern = patterns[pattern];
-    struct pattern_entry entry = our_pattern[place_in_pattern];
+    const struct pattern_entry *our_pattern = (struct pattern_entry *)pgm_read_word(&(patterns[pattern]));
+    struct pattern_entry entry;
+    memcpy_P(&entry, (void*)(&(our_pattern[place_in_pattern])), sizeof(struct pattern_entry));
     if (entry.duration == 0) {
       // A duration of 0 is the end of the pattern.
       place_in_pattern = 0;   
-      entry = our_pattern[place_in_pattern];
+      memcpy_P(&entry, (void*)(&(our_pattern[place_in_pattern])), sizeof(struct pattern_entry));
     }
     // Set the LEDs as per the current pattern entry
     for(int i = 0; i < 8; i++)
@@ -248,4 +266,3 @@ void loop() {
     milli_of_next_act = now + entry.duration;
   }
 }
-
