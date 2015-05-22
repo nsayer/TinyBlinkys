@@ -550,7 +550,10 @@ void main() {
         eeprom_write_byte(EE_PATTERN_NUM, pattern);
         continue;
     }
-    if (milli_of_next_act == 0 || now > milli_of_next_act) {
+    // Note that now > milli_of_next_act is wrong here because our
+    // time wraps. now - milli_of_next_act > 0 *looks* the same,
+    // but handles cases where the sign differs.
+    if (milli_of_next_act == 0 || ((long)(now - milli_of_next_act)) >= 0) {
       // It's time to go to the next step in the pattern
       place_in_pattern++;
       const struct pattern_entry *our_pattern = (struct pattern_entry *)pgm_read_ptr(&(patterns[pattern]));
