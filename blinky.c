@@ -26,6 +26,7 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
+#include <util/atomic.h>
 
 // Where in the EEPROM do we store the pattern number?
 #define EE_PATTERN_NUM 0
@@ -428,12 +429,13 @@ ISR(TIM0_COMPA_vect) {
   }
 }
 
-static inline unsigned long millis() {
+static inline __attribute__((always_inline)) unsigned long millis() {
   // We need to be careful to prevent the ISR from
   // altering the value while we're reading it.
-  cli();
-  unsigned long out = millis_counter;
-  sei();
+  unsigned long out;
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    out = millis_counter;
+  }
   return out;
 }
 
@@ -476,12 +478,18 @@ static inline void sleepNow() {
   for(int i = 0; i < 8; i++) {
     *((unsigned char *)pgm_read_ptr(&(LED_PORT[i]))) &= ~_BV(pgm_read_byte(&(LED_PIN[i])));
   }
-  cli();
-  power_timer0_disable();
-  PCMSK0 |= _BV(PCINT5);
-  GIMSK |= _BV(PCIE0);
-  sleep_enable();
-  sei();
+  // We want to do this carefully. If someone pushes the button
+  // while we're prepareing here, we do NOT want to 'eat' that
+  // interrupt. Rather, we want to enable interrupts at the same
+  // time we call sleep_cpu() (sei() is defferred for one instruction).
+  // That way the button push will effectively cancel the sleep rather
+  // than get 'eaten'.
+  ATOMIC_BLOCK(ATOMIC_FORCEON) {
+    power_timer0_disable();
+    PCMSK0 |= _BV(PCINT5);
+    GIMSK |= _BV(PCIE0);
+    sleep_enable();
+  }
   sleep_cpu();
 
   // And now we wake up
