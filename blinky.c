@@ -26,11 +26,6 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <avr/eeprom.h>
-#include <util/delay.h>
-
-#ifndef pgm_read_ptr
-#define pgm_read_ptr pgm_read_word
-#endif
 
 // Where in the EEPROM do we store the pattern number?
 #define EE_PATTERN_NUM 0
@@ -46,11 +41,9 @@ PROGMEM const unsigned char LED_PIN[] = { PA0, PA1, PA2, PA3, PA7, PB0, PB1, PB2
 // How long does the button have to stay down before we call it a LONG push?
 #define BUTTON_LONG_START 250
 
-unsigned int pattern;
-
 struct pattern_entry {
   unsigned char mask;
-  unsigned long duration;
+  unsigned int duration;
 };
 
 // Circle in 800 ms, sleep 1 second.
@@ -413,7 +406,6 @@ PROGMEM struct pattern_entry* const patterns[] = {
 
 volatile unsigned long millis_counter;
 volatile unsigned int irq_cycle_pos;
-
 int place_in_pattern;
 unsigned long milli_of_next_act, button_debounce_time, button_press_time;
 unsigned char ignoring_button;
@@ -436,7 +428,7 @@ ISR(TIM0_COMPA_vect) {
   }
 }
 
-unsigned long millis() {
+static inline unsigned long millis() {
   // We need to be careful to prevent the ISR from
   // altering the value while we're reading it.
   cli();
@@ -445,7 +437,7 @@ unsigned long millis() {
   return out;
 }
 
-unsigned int checkEvent() {
+static inline unsigned int checkEvent() {
   unsigned long now = millis();
   if (button_debounce_time != 0) {
     if (now - button_debounce_time < BUTTON_DEBOUNCE_INTERVAL) {
@@ -479,7 +471,7 @@ unsigned int checkEvent() {
   }
 }
 
-void sleepNow() {
+static inline void sleepNow() {
   // All LEDs off
   for(int i = 0; i < 8; i++) {
     *((unsigned char *)pgm_read_ptr(&(LED_PORT[i]))) &= ~_BV(pgm_read_byte(&(LED_PIN[i])));
@@ -528,7 +520,7 @@ void main() {
   PORTA = _BV(PA5); // enable the pull-up on the button pin
   PORTB = 0;
   
-  pattern = eeprom_read_byte(EE_PATTERN_NUM);
+  unsigned char pattern = eeprom_read_byte(EE_PATTERN_NUM);
   if (pattern >= PATTERN_COUNT) pattern = 0;
   place_in_pattern = -1;
   milli_of_next_act = 0;

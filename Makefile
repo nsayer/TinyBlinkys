@@ -1,3 +1,4 @@
+
 # Change this to whatever AVR programmer you want to use.
 PROGRAMMER = usbtiny
 
@@ -8,7 +9,7 @@ CC = avr-gcc
 OBJCPY = avr-objcopy
 AVRDUDE = avrdude
 
-CFLAGS = -DF_CPU=1000000 -Os -g -mmcu=$(CHIP) -std=c99 $(OPTS) -ffreestanding -Wall
+CFLAGS = -Os -g -mmcu=$(CHIP) -std=c99 $(OPTS) -ffreestanding -Wall
 
 %.o: %.c Makefile
 	$(CC) $(CFLAGS) -c -o $@ $<
@@ -19,8 +20,10 @@ CFLAGS = -DF_CPU=1000000 -Os -g -mmcu=$(CHIP) -std=c99 $(OPTS) -ffreestanding -W
 %.elf: %.o
 	$(CC) $(CFLAGS) -o $@ $^
 
+all:	blinky.hex
+
 clean:
-	rm -f blinky.hex
+	rm -f blinky.hex blinky.elf blinky.o
 
 flash:	blinky.hex
 	$(AVRDUDE) -c $(PROGRAMMER) -p $(CHIP) -U flash:w:blinky.hex
