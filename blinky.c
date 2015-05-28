@@ -28,6 +28,10 @@
 #include <avr/eeprom.h>
 #include <util/atomic.h>
 
+#ifndef pgm_read_ptr
+#define pgm_read_ptr pgm_read_word
+#endif
+
 // Where in the EEPROM do we store the pattern number?
 #define EE_PATTERN_NUM 0
 
