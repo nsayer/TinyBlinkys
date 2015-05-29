@@ -394,12 +394,12 @@ PROGMEM const struct pattern_entry pulse_all[] = {
   { 0, 0 }
 };
 
-PROGMEM struct pattern_entry* const patterns[] = {
-  (struct pattern_entry* const)circle_pattern,
-  (struct pattern_entry* const)back_circle_pattern,
-  (struct pattern_entry* const)skip_around,
-  (struct pattern_entry* const)blink_all,
-  (struct pattern_entry* const)pulse_all
+PROGMEM PGM_VOID_P const patterns[] = {
+  (PGM_VOID_P)circle_pattern,
+  (PGM_VOID_P)back_circle_pattern,
+  (PGM_VOID_P)skip_around,
+  (PGM_VOID_P)blink_all,
+  (PGM_VOID_P)pulse_all
 };
 // How many patterns are there?
 #define PATTERN_COUNT 5
@@ -415,11 +415,11 @@ int place_in_pattern;
 unsigned long milli_of_next_act, button_debounce_time, button_press_time;
 unsigned char ignoring_button;
 
-// To turn 1 MHz into 1 kHz, we divide by 64 with the divisor, then by 15 5/8.
-#define LONG_IRQ_CYCLE_COUNT 5
-#define TOTAL_IRQ_CYCLE_COUNT 8
+// To turn 500 kHz into 1 kHz, we divide by 64 with the divisor, then by 7 13/16.
+#define LONG_IRQ_CYCLE_COUNT 13
+#define TOTAL_IRQ_CYCLE_COUNT 16
 // The counting is zero based *and* inclusive
-#define IRQ_CYCLE_LENGTH (15 - 1)
+#define IRQ_CYCLE_LENGTH (7 - 1)
 
 EMPTY_INTERRUPT(PCINT0_vect)
 
@@ -510,6 +510,7 @@ static inline void sleepNow() {
 
 void main() {
   // power management setup
+  clock_prescale_set(clock_div_16); // 500 kHz clock
   ADCSRA = 0; // DIE, ADC! DIE!!!
   power_adc_disable();
   power_usi_disable();
