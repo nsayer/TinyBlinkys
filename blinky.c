@@ -41,6 +41,11 @@ PROGMEM const unsigned char LED_PIN[] = { PA0, PA1, PA2, PA3, PA7, PB0, PB1, PB2
 #define BUTTON_PORT PINA
 #define BUTTON_MASK _BV(PINA5)
 
+// The current code uses an unsigned char as the mask, so the
+// current assumption is a maximum of 8 LEDs, but by switching
+// to an unsigned int you could do more.
+#define LED_COUNT (sizeof(LED_PIN) / sizeof(unsigned char))
+
 // If we see any state change on the button, we ignore all changes for this long
 #define BUTTON_DEBOUNCE_INTERVAL 50
 // How long does the button have to stay down before we call it a LONG push?
@@ -162,8 +167,7 @@ PROGMEM PGM_VOID_P const patterns[] = {
   (PGM_VOID_P)pulse_all
 };
 // How many patterns are there?
-#define PATTERN_COUNT 7
-//#define PATTERN_COUNT (sizeof(patterns) / sizeof(struct pattern_entry *))
+#define PATTERN_COUNT (sizeof(patterns) / sizeof(PGM_VOID_P))
 
 #define EVENT_NONE 0
 #define EVENT_SHORT_PUSH 1
@@ -240,7 +244,7 @@ static inline unsigned int checkEvent() {
 
 static inline void sleepNow() {
   // All LEDs off
-  for(int i = 0; i < 8; i++) {
+  for(int i = 0; i < LED_COUNT; i++) {
     *((unsigned char *)pgm_read_ptr(&(LED_PORT[i]))) &= ~_BV(pgm_read_byte(&(LED_PIN[i])));
   }
   // We want to do this carefully. If someone pushes the button
@@ -304,6 +308,8 @@ void main() {
 
   while(1) {
     unsigned long now = millis();
+
+    // poll for button events
     unsigned int event = checkEvent();
     switch(event) {
       case EVENT_LONG_PUSH:
@@ -316,6 +322,10 @@ void main() {
         eeprom_write_byte(EE_PATTERN_NUM, pattern);
         continue;
     }
+
+    // If it's time to move to the next step in a pattern, pull out its
+    // mask and clear all of the LEDs.
+
     // Note that now > milli_of_next_change is wrong here because our
     // time wraps. now - milli_of_next_change > 0 *looks* the same,
     // but handles cases where the sign differs.
@@ -324,30 +334,33 @@ void main() {
       place_in_pattern++;
       const struct pattern_entry *our_pattern = (struct pattern_entry *)pgm_read_ptr(&(patterns[pattern]));
       struct pattern_entry entry;
-      memcpy_P(&entry, (void*)(&(our_pattern[place_in_pattern])), sizeof(struct pattern_entry));
-      if (entry.duration == 0) {
-        // A duration of 0 is the end of the pattern.
-        place_in_pattern = 0;   
+      do {
         memcpy_P(&entry, (void*)(&(our_pattern[place_in_pattern])), sizeof(struct pattern_entry));
-      }
+        // A duration of 0 is the end of the pattern.
+        if (entry.duration != 0) break;
+        place_in_pattern = 0;   
+      } while(1); // This means a pattern of a single entry with 0 duration is kryptonite.
       current_mask = entry.mask;
       // Turn out all the lights
-      for(int i = 0; i < 8; i++) {
+      for(int i = 0; i < LED_COUNT; i++) {
         *((unsigned char *)pgm_read_ptr(&(LED_PORT[i]))) &= ~_BV(pgm_read_byte(&(LED_PIN[i])));
       }
       milli_of_next_change = now + entry.duration;
       current_led = 99; //invalid
     }
+
+    // Now multiplex the LEDSs. Rotate through all of the set bits in the
+    // current mask and turn the next one on every pass through this loop.
     if (current_mask != 0) { // if it IS zero, then all the lights are out anyway.
       unsigned char next_led = current_led;
-      do {
-        next_led++;
-        if (next_led >= 8) next_led = 0;
+      while(1) { // we know it's not zero, so there's at least one bit set
+        if (++next_led >= LED_COUNT) next_led = 0;
         if (current_mask & (1 << next_led)) break; // found one!
-      } while(next_led != current_led);
+      }
       if (next_led != current_led) {
         // turn the old one off and the new one on.
-        *((unsigned char *)pgm_read_ptr(&(LED_PORT[current_led]))) &= ~_BV(pgm_read_byte(&(LED_PIN[current_led])));
+        if (current_led < LED_COUNT) // is it safe?
+          *((unsigned char *)pgm_read_ptr(&(LED_PORT[current_led]))) &= ~_BV(pgm_read_byte(&(LED_PIN[current_led])));
         *((unsigned char *)pgm_read_ptr(&(LED_PORT[next_led]))) |= _BV(pgm_read_byte(&(LED_PIN[next_led])));
         current_led = next_led;
       }
