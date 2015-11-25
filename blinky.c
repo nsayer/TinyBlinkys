@@ -53,66 +53,44 @@ struct pattern_entry {
 
 // Circle in 800 ms, sleep 1 second.
 PROGMEM const struct pattern_entry circle_pattern_cw[] = {
-  { 0B00000001, 40 },
-  { 0, 50 },
-  { 0B00000010, 40 },
-  { 0, 50 },
-  { 0B00000100, 40 },
-  { 0, 50 },
-  { 0B00001000, 40 },
-  { 0, 50 },
-  { 0B00010000, 40 },
-  { 0, 50 },
-  { 0B00100000, 40 },
-  { 0, 50 },
-  { 0B01000000, 40 },
-  { 0, 50 },
-  { 0B10000000, 40 },
+  { 0B00000001, 100 },
+  { 0B00000010, 100 },
+  { 0B00000100, 100 },
+  { 0B00001000, 100 },
+  { 0B00010000, 100 },
+  { 0B00100000, 100 },
+  { 0B01000000, 100 },
+  { 0B10000000, 100 },
   { 0, 0 }
 };
 
 PROGMEM const struct pattern_entry circle_pattern_ccw[] = {
-  { 0B10000000, 40 },
-  { 0, 50 },
-  { 0B01000000, 40 },
-  { 0, 50 },
-  { 0B00100000, 40 },
-  { 0, 50 },
-  { 0B00010000, 40 },
-  { 0, 50 },
-  { 0B00001000, 40 },
-  { 0, 50 },
-  { 0B00000100, 40 },
-  { 0, 50 },
-  { 0B00000010, 40 },
-  { 0, 50 },
-  { 0B00000001, 40 },
+  { 0B10000000, 100 },
+  { 0B01000000, 100 },
+  { 0B00100000, 100 },
+  { 0B00010000, 100 },
+  { 0B00001000, 100 },
+  { 0B00000100, 100 },
+  { 0B00000010, 100 },
+  { 0B00000001, 100 },
   { 0, 0 }
 };
 
 PROGMEM const struct pattern_entry skip_around[] = {
-  { 0B10000000, 40 },
-  { 0, 50 },
-  { 0B00010000, 40 },
-  { 0, 50 },
-  { 0B00000010, 40 },
-  { 0, 50 },
-  { 0B01000000, 40 },
-  { 0, 50 },
-  { 0B00001000, 40 },
-  { 0, 50 },
-  { 0B00000001, 40 },
-  { 0, 50 },
-  { 0B00100000, 40 },
-  { 0, 50 },
-  { 0B00000100, 40 },
-  { 0, 50 },
+  { 0B10000000, 100 },
+  { 0B00010000, 100 },
+  { 0B00000010, 100 },
+  { 0B01000000, 100 },
+  { 0B00001000, 100 },
+  { 0B00000001, 100 },
+  { 0B00100000, 100 },
+  { 0B00000100, 100 },
   { 0, 0 }
 };
 
 PROGMEM const struct pattern_entry blink_all[] = {
   { 0B11111111, 200 },
-  { 0, 1300 },
+  { 0, 800 },
   { 0, 0 }
 };
 
@@ -125,6 +103,7 @@ PROGMEM const struct pattern_entry pulse_all[] = {
   { 0, 20 },
   { 0B11111111, 10 },
   { 0, 20 },
+
   { 0B11111111, 10 },
   { 0, 10 },
   { 0B11111111, 10 },
@@ -133,6 +112,7 @@ PROGMEM const struct pattern_entry pulse_all[] = {
   { 0, 10 },
   { 0B11111111, 10 },
   { 0, 10 },
+
   { 0B11111111, 100 },
 
   { 0, 10 },
@@ -143,6 +123,7 @@ PROGMEM const struct pattern_entry pulse_all[] = {
   { 0B11111111, 10 },
   { 0, 10 },
   { 0B11111111, 10 },
+
   { 0, 20 },
   { 0B11111111, 10 },
   { 0, 20 },
@@ -156,29 +137,29 @@ PROGMEM const struct pattern_entry pulse_all[] = {
 };
 
 PROGMEM const struct pattern_entry axial_cw[] = {
-  { 0B00010001, 80 },
-  { 0B00100010, 80 },
-  { 0B01000100, 80 },
-  { 0B10001000, 80 },
+  { 0B00010001, 100 },
+  { 0B00100010, 100 },
+  { 0B01000100, 100 },
+  { 0B10001000, 100 },
   { 0, 0}
 };
 
 PROGMEM const struct pattern_entry axial_ccw[] = {
-  { 0B10001000, 80 },
-  { 0B01000100, 80 },
-  { 0B00100010, 80 },
-  { 0B00010001, 80 },
+  { 0B10001000, 100 },
+  { 0B01000100, 100 },
+  { 0B00100010, 100 },
+  { 0B00010001, 100 },
   { 0, 0 }
 };
 
 PROGMEM PGM_VOID_P const patterns[] = {
   (PGM_VOID_P)circle_pattern_cw,
   (PGM_VOID_P)circle_pattern_ccw,
+  (PGM_VOID_P)axial_cw,
+  (PGM_VOID_P)axial_ccw,
   (PGM_VOID_P)skip_around,
   (PGM_VOID_P)blink_all,
-  (PGM_VOID_P)pulse_all,
-  (PGM_VOID_P)axial_cw,
-  (PGM_VOID_P)axial_ccw
+  (PGM_VOID_P)pulse_all
 };
 // How many patterns are there?
 #define PATTERN_COUNT 7
