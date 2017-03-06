@@ -32,6 +32,9 @@
 #define pgm_read_ptr pgm_read_word
 #endif
 
+// Same product, different form factor, different patterns
+//#define POV_TWIRLIE
+
 // Where in the EEPROM do we store the pattern number?
 #define EE_PATTERN_NUM 0
 
@@ -55,6 +58,54 @@ struct pattern_entry {
   unsigned char mask;
   unsigned int duration;
 };
+
+#ifdef POV_TWIRLIE
+
+PROGMEM const struct pattern_entry zigzag[] = {
+  { 0B00000001, 1 },
+  { 0B00000010, 1 },
+  { 0B00000100, 1 },
+  { 0B00001000, 1 },
+  { 0B00010000, 1 },
+  { 0B00100000, 1 },
+  { 0B01000000, 1 },
+  { 0B10000000, 1 },
+  { 0B01000000, 1 },
+  { 0B00100000, 1 },
+  { 0B00010000, 1 },
+  { 0B00001000, 1 },
+  { 0B00000100, 1 },
+  { 0B00000010, 1 },
+  { 0, 0 }
+};
+
+PROGMEM const struct pattern_entry diamond[] = {
+  { 0B10000001, 2 },
+  { 0B01000010, 2 },
+  { 0B00100100, 2 },
+  { 0B00011000, 2 },
+  { 0B00100100, 2 },
+  { 0B01000010, 2 },
+  { 0, 0 }
+};
+
+PROGMEM const struct pattern_entry arrow[] = {
+  { 0B00011000, 10 },
+  { 0B10011001, 2 },
+  { 0B01011010, 2 },
+  { 0B00111100, 2 },
+  { 0B00011000, 2 },
+  { 0B00000000, 4 },
+  { 0, 0 }
+};
+
+PROGMEM PGM_VOID_P const patterns[] = {
+	(PGM_VOID_P)zigzag,
+	(PGM_VOID_P)diamond,
+	(PGM_VOID_P)arrow
+};
+
+#else
 
 // Circle in 800 ms, sleep 1 second.
 PROGMEM const struct pattern_entry circle_pattern_cw[] = {
@@ -166,6 +217,8 @@ PROGMEM PGM_VOID_P const patterns[] = {
   (PGM_VOID_P)blink_all,
   (PGM_VOID_P)pulse_all
 };
+#endif
+
 // How many patterns are there?
 #define PATTERN_COUNT (sizeof(patterns) / sizeof(PGM_VOID_P))
 
@@ -180,11 +233,19 @@ unsigned char current_led, current_mask;
 unsigned long milli_of_next_change, button_debounce_time, button_press_time;
 unsigned char ignoring_button;
 
+#ifdef POV_TWIRLIE
+// To turn 2 MHz into 1 kHz, we divide by 64 with the divisor, then by 31 1/4.
+#define LONG_IRQ_CYCLE_COUNT 1
+#define TOTAL_IRQ_CYCLE_COUNT 4
+// The counting is zero based *and* inclusive
+#define IRQ_CYCLE_LENGTH (31 - 1)
+#else
 // To turn 500 kHz into 1 kHz, we divide by 64 with the divisor, then by 7 13/16.
 #define LONG_IRQ_CYCLE_COUNT 13
 #define TOTAL_IRQ_CYCLE_COUNT 16
 // The counting is zero based *and* inclusive
 #define IRQ_CYCLE_LENGTH (7 - 1)
+#endif
 
 EMPTY_INTERRUPT(PCINT0_vect)
 
@@ -275,7 +336,11 @@ static inline void sleepNow() {
 
 void main() {
   // power management setup
-  clock_prescale_set(clock_div_16); // 500 kHz clock
+#ifdef POV_TWIRLIE
+  clock_prescale_set(clock_div_4); // 2 MHz clock
+#else
+  clock_prescale_set(clock_div_16); // 1 MHz clock
+#endif
   ADCSRA = 0; // DIE, ADC! DIE!!!
   power_adc_disable();
   power_usi_disable();
