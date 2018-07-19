@@ -249,7 +249,12 @@ unsigned char ignoring_button;
 
 EMPTY_INTERRUPT(PCINT0_vect)
 
+// Really, ATMel?
+#ifdef __AVR_ATtiny841__
+ISR(TIMER0_COMPA_vect) {
+#else
 ISR(TIM0_COMPA_vect) {
+#endif
   millis_counter++;
   irq_cycle_pos++;
   if (irq_cycle_pos == LONG_IRQ_CYCLE_COUNT) OCR0A = IRQ_CYCLE_LENGTH; // set short divisor
@@ -336,16 +341,33 @@ static inline void sleepNow() {
 
 void main() {
   // power management setup
+#ifdef __AVR_ATtiny841__
+  // sigh. clock_prescale_set() isn't defined for the 841.
+  ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+    CCP = 0xd8;
+    CLKPR = 2;
+  }
+#else
 #ifdef POV_TWIRLIE
   clock_prescale_set(clock_div_4); // 2 MHz clock
 #else
   clock_prescale_set(clock_div_16); // 1 MHz clock
 #endif
+#endif
   ADCSRA = 0; // DIE, ADC! DIE!!!
   power_adc_disable();
+#ifdef __AVR_ATtiny841__
+  power_twi_disable();
+  power_usart0_disable();
+  power_usart1_disable();
+  power_spi_disable();
+  power_timer2_disable();
+#else
   power_usi_disable();
+#endif
   power_timer1_disable();
-  ACSR = _BV(ACD);
+  // Redundant - defaults to disabled anyway.
+  //ACSR = _BV(ACD);
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 
   // millisecond timer setup
@@ -360,7 +382,11 @@ void main() {
   // I/O port setup 
   DDRA = _BV(PA0) | _BV(PA1) | _BV(PA2) | _BV(PA3) | _BV(PA7);
   DDRB = _BV(PB0) | _BV(PB1) | _BV(PB2);
+#ifdef __AVR_ATtiny841__
+  PUEA = _BV(PUEA5); // enable the pull-up on the button pin
+#else
   PORTA = _BV(PA5); // enable the pull-up on the button pin
+#endif
   PORTB = 0;
   
   unsigned char pattern = eeprom_read_byte(EE_PATTERN_NUM);
